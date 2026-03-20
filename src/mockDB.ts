@@ -1,66 +1,80 @@
-// SQLite 数据库 - 轻量级，数据持久化
-import Database from 'better-sqlite3';
+// SQLite 数据库 - 使用 sqlite3（纯JavaScript，无需编译）
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 import path from 'path';
 
-// Render.com 使用 /data 目录持久化存储
-const dbPath = process.env.RENDER_DISK_MOUNT_PATH 
-  ? path.join(process.env.RENDER_DISK_MOUNT_PATH, 'data.db')
-  : path.join(process.cwd(), 'data.db');
+// 数据库文件路径
+const dbPath = path.join(process.cwd(), 'data.db');
 
-console.log('Database path:', dbPath);
+// 创建数据库连接
+let db: any = null;
 
-const db = new Database(dbPath);
+async function getDb() {
+  if (!db) {
+    db = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+    
+    // 初始化表
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE,
+        password TEXT,
+        name TEXT,
+        createdAt TEXT
+      )
+    `);
 
-// 初始化表
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE,
-    password TEXT,
-    name TEXT,
-    createdAt TEXT
-  )
-`);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS documents (
-    id TEXT PRIMARY KEY,
-    title TEXT,
-    content TEXT,
-    userId TEXT,
-    createdAt TEXT,
-    updatedAt TEXT
-  )
-`);
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        content TEXT,
+        userId TEXT,
+        createdAt TEXT,
+        updatedAt TEXT
+      )
+    `);
+  }
+  return db;
+}
 
 export const mockDB = {
-  createUser(email: string, password: string, name: string) {
+  async createUser(email: string, password: string, name: string) {
+    const db = await getDb();
     const id = 'user_' + Date.now();
-    const stmt = db.prepare('INSERT INTO users (id, email, password, name, createdAt) VALUES (?, ?, ?, ?, ?)');
-    stmt.run(id, email, password, name, new Date().toISOString());
+    await db.run(
+      'INSERT INTO users (id, email, password, name, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [id, email, password, name, new Date().toISOString()]
+    );
     return { id, email, name };
   },
   
-  findUserByEmail(email: string) {
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-    return stmt.get(email);
+  async findUserByEmail(email: string) {
+    const db = await getDb();
+    return db.get('SELECT * FROM users WHERE email = ?', [email]);
   },
   
-  verifyUser(email: string, password: string) {
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ? AND password = ?');
-    return stmt.get(email, password);
+  async verifyUser(email: string, password: string) {
+    const db = await getDb();
+    return db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
   },
   
-  createDocument(title: string, content: string, userId: string) {
+  async createDocument(title: string, content: string, userId: string) {
+    const db = await getDb();
     const id = 'doc_' + Date.now();
     const now = new Date().toISOString();
-    const stmt = db.prepare('INSERT INTO documents (id, title, content, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)');
-    stmt.run(id, title, content, userId, now, now);
+    await db.run(
+      'INSERT INTO documents (id, title, content, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, title, content, userId, now, now]
+    );
     return { id, title, content, userId, createdAt: now };
   },
   
-  getDocumentsByUserId(userId: string) {
-    const stmt = db.prepare('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC');
-    return stmt.all(userId);
+  async getDocumentsByUserId(userId: string) {
+    const db = await getDb();
+    return db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', [userId]);
   }
 };

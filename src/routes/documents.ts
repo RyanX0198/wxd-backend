@@ -22,16 +22,16 @@ const authMiddleware = (req: any, res: any, next: any) => {
 };
 
 // POST /api/documents (创建文档)
-router.post('/', authMiddleware, (req: any, res) => {
+router.post('/', authMiddleware, async (req: any, res) => {
   try {
     const { title, content } = req.body;
     const userId = req.user.userId;
     
-    if (!title || !content) {
-      return res.status(400).json({ error: '标题和内容必填' });
+    if (!title) {
+      return res.status(400).json({ error: '标题必填' });
     }
     
-    const doc = mockDB.createDocument(title, content, userId);
+    const doc = await mockDB.createDocument(title, content || '', userId);
     
     res.json({
       success: true,
@@ -42,19 +42,20 @@ router.post('/', authMiddleware, (req: any, res) => {
       }
     });
   } catch (error) {
+    console.error('创建文档错误:', error);
     res.status(500).json({ error: '创建文档失败' });
   }
 });
 
 // GET /api/documents (获取文档列表)
-router.get('/', authMiddleware, (req: any, res) => {
+router.get('/', authMiddleware, async (req: any, res) => {
   try {
     const userId = req.user.userId;
-    const docs = mockDB.getDocumentsByUserId(userId);
+    const docs = await mockDB.getDocumentsByUserId(userId);
     
     res.json({
       success: true,
-      data: docs.map(d => ({
+      data: docs.map((d: any) => ({
         id: d.id,
         title: d.title,
         preview: d.content.substring(0, 200) + '...',
@@ -62,6 +63,7 @@ router.get('/', authMiddleware, (req: any, res) => {
       }))
     });
   } catch (error) {
+    console.error('获取文档错误:', error);
     res.status(500).json({ error: '获取文档列表失败' });
   }
 });
