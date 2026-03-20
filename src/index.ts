@@ -58,3 +58,11 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📝 Documents API: http://localhost:${PORT}/api/documents`);
   console.log(`🤖 Generate API: http://localhost:${PORT}/api/generate`);
 });
+// 健康检查接口
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: 'sqlite'
+  });
+});
