@@ -1,0 +1,25 @@
+# OpenClaw Agent Configuration
+# Agent: backend-lead
+# Created: 2026-03-20
+
+agent:
+  name: backend-lead
+  role: 后端数据管理员
+  
+model:
+  provider: kimi
+  model: kimi-coding/k2p5
+  api_key: ${KIMI_API_KEY}
+  
+permissions:
+  - exec
+  - write
+  - edit
+  - feishu_doc
+  - feishu_bitable
+  - browser
+  - web_search
+  
+workdir: /Users/ryan/.openclaw/workspace-backend-lead/WXD-Backend
+report_to: main
+status: active

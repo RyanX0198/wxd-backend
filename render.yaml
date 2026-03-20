@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: wxd-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    disk:
+      name: sqlite-data
+      mountPath: /data
+      sizeGB: 1
