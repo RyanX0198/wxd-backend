@@ -153,7 +153,7 @@ const prompts = {
 // POST /api/generate
 router.post('/', async (req, res) => {
   try {
-    const { type, topic, from, to } = req.body;
+    const { type, topic, from, to, wordCount, formality, urgency } = req.body;
     
     if (!type || !topic || !from || !to) {
       return res.status(400).json({ error: '缺少必要参数' });
@@ -163,8 +163,41 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: '不支持的文种类型' });
     }
     
-    // 构建 prompt
-    const prompt = prompts[type as keyof typeof prompts](topic, from, to);
+    // 构建基础prompt
+    const basePrompt = prompts[type as keyof typeof prompts](topic, from, to);
+    
+    // 添加参数调整
+    let paramInstructions = '';
+    
+    // 字数调整
+    if (wordCount) {
+      paramInstructions += `\n字数要求：严格控制在${wordCount}字左右。`;
+    }
+    
+    // 风格调整
+    if (formality) {
+      const styleMap: Record<number, string> = {
+        1: '通俗易懂，口语化表达，便于群众理解',
+        2: '较为通俗，适当使用专业术语',
+        3: '标准公文风格，庄重得体',
+        4: '较为正式，强调规范性和严肃性',
+        5: '严谨正式，高度规范，使用标准公文用语'
+      };
+      paramInstructions += `\n语言风格：${styleMap[formality] || styleMap[3]}`;
+    }
+    
+    // 紧迫程度
+    if (urgency) {
+      const urgencyMap: Record<number, string> = {
+        1: '常规公文，语气平和',
+        2: '较为紧急，语气适当加快',
+        3: '紧急公文，强调时效性，要求尽快落实'
+      };
+      paramInstructions += `\n紧迫程度：${urgencyMap[urgency] || urgencyMap[1]}`;
+    }
+    
+    // 完整prompt
+    const prompt = basePrompt + paramInstructions;
     
     // 调用 DeepSeek API
     const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
@@ -192,19 +225,20 @@ router.post('/', async (req, res) => {
     }
     
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const generatedContent = data.choices?.[0]?.message?.content || '';
     
-    if (!content) {
+    if (!generatedContent) {
       throw new Error('AI返回内容为空');
     }
     
     res.json({
       success: true,
       data: {
-        content,
+        content: generatedContent,
         type,
         topic,
-        model: 'deepseek-chat'
+        model: 'deepseek-chat',
+        params: { wordCount, formality, urgency }
       }
     });
   } catch (error: any) {
