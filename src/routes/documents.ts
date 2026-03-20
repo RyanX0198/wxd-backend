@@ -69,4 +69,95 @@ router.get('/', authMiddleware, async (req: any, res) => {
   }
 });
 
+// GET /api/documents/:id (获取单个文档)
+router.get('/:id', authMiddleware, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    
+    const doc = await mockDB.getDocumentById(id);
+    
+    if (!doc) {
+      return res.status(404).json({ error: '文档不存在' });
+    }
+    
+    if (doc.userId !== userId) {
+      return res.status(403).json({ error: '无权访问此文档' });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        id: doc.id,
+        title: doc.title,
+        content: doc.content,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('获取文档错误:', error);
+    res.status(500).json({ error: '获取文档失败' });
+  }
+});
+
+// PUT /api/documents/:id (更新文档)
+router.put('/:id', authMiddleware, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const userId = req.user.userId;
+    
+    if (!title) {
+      return res.status(400).json({ error: '标题必填' });
+    }
+    
+    // 检查文档是否存在且属于当前用户
+    const existingDoc = await mockDB.getDocumentById(id);
+    if (!existingDoc) {
+      return res.status(404).json({ error: '文档不存在' });
+    }
+    if (existingDoc.userId !== userId) {
+      return res.status(403).json({ error: '无权修改此文档' });
+    }
+    
+    const updatedDoc = await mockDB.updateDocument(id, title, content || '');
+    
+    res.json({
+      success: true,
+      data: updatedDoc
+    });
+  } catch (error) {
+    console.error('更新文档错误:', error);
+    res.status(500).json({ error: '更新文档失败' });
+  }
+});
+
+// DELETE /api/documents/:id (删除文档)
+router.delete('/:id', authMiddleware, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    
+    // 检查文档是否存在且属于当前用户
+    const existingDoc = await mockDB.getDocumentById(id);
+    if (!existingDoc) {
+      return res.status(404).json({ error: '文档不存在' });
+    }
+    if (existingDoc.userId !== userId) {
+      return res.status(403).json({ error: '无权删除此文档' });
+    }
+    
+    await mockDB.deleteDocument(id);
+    
+    res.json({
+      success: true,
+      message: '文档已删除'
+    });
+  } catch (error) {
+    console.error('删除文档错误:', error);
+    res.status(500).json({ error: '删除文档失败' });
+  }
+});
+
 export default router;

@@ -76,5 +76,26 @@ export const mockDB = {
   async getDocumentsByUserId(userId: string) {
     const db = await getDb();
     return db.all('SELECT * FROM documents WHERE userId = ? ORDER BY createdAt DESC', [userId]);
+  },
+
+  async getDocumentById(id: string) {
+    const db = await getDb();
+    return db.get('SELECT * FROM documents WHERE id = ?', [id]);
+  },
+
+  async updateDocument(id: string, title: string, content: string) {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    await db.run(
+      'UPDATE documents SET title = ?, content = ?, updatedAt = ? WHERE id = ?',
+      [title, content, now, id]
+    );
+    return { id, title, content, updatedAt: now };
+  },
+
+  async deleteDocument(id: string) {
+    const db = await getDb();
+    await db.run('DELETE FROM documents WHERE id = ?', [id]);
+    return { id };
   }
 };
