@@ -59,6 +59,7 @@ router.get('/', authMiddleware, async (req: any, res) => {
         id: d.id,
         title: d.title,
         preview: d.content.substring(0, 200) + '...',
+        content: d.content,
         createdAt: d.createdAt
       }))
     });
