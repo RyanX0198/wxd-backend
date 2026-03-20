@@ -60,6 +60,7 @@ router.get('/', authMiddleware, async (req: any, res) => {
         title: d.title,
         preview: d.content.substring(0, 200) + '...',
         content: d.content,
+        wordCount: d.content.length,  // 字数统计
         createdAt: d.createdAt
       }))
     });
