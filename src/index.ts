@@ -30,10 +30,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// 健康检查
+// 健康检查 - 同时支持 /health 和 /api/health
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: 'sqlite'
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     database: 'sqlite'
   });
