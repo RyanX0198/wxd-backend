@@ -37,11 +37,35 @@ async function getDb() {
         updatedAt TEXT
       )
     `);
+
+    // 对话表
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        title TEXT DEFAULT '新对话',
+        type TEXT DEFAULT 'general',
+        userId TEXT,
+        createdAt TEXT,
+        updatedAt TEXT
+      )
+    `);
+
+    // 消息表
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        role TEXT,
+        content TEXT,
+        conversationId TEXT,
+        createdAt TEXT
+      )
+    `);
   }
   return db;
 }
 
 export const mockDB = {
+  // ========== 用户相关 ==========
   async createUser(email: string, password: string, name: string) {
     const db = await getDb();
     const id = 'user_' + Date.now();
@@ -61,7 +85,8 @@ export const mockDB = {
     const db = await getDb();
     return db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
   },
-  
+
+  // ========== 文档相关 ==========
   async createDocument(title: string, content: string, userId: string) {
     const db = await getDb();
     const id = 'doc_' + Date.now();
@@ -97,5 +122,72 @@ export const mockDB = {
     const db = await getDb();
     await db.run('DELETE FROM documents WHERE id = ?', [id]);
     return { id };
+  },
+
+  // ========== 对话相关 ==========
+  async createConversation(userId: string, title: string = '新对话', type: string = 'general') {
+    const db = await getDb();
+    const id = 'conv_' + Date.now();
+    const now = new Date().toISOString();
+    await db.run(
+      'INSERT INTO conversations (id, title, type, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, title, type, userId, now, now]
+    );
+    return { id, title, type, userId, createdAt: now, updatedAt: now };
+  },
+
+  async getConversationsByUserId(userId: string) {
+    const db = await getDb();
+    return db.all('SELECT * FROM conversations WHERE userId = ? ORDER BY updatedAt DESC', [userId]);
+  },
+
+  async getConversationById(id: string) {
+    const db = await getDb();
+    return db.get('SELECT * FROM conversations WHERE id = ?', [id]);
+  },
+
+  async updateConversationTitle(id: string, title: string) {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    await db.run(
+      'UPDATE conversations SET title = ?, updatedAt = ? WHERE id = ?',
+      [title, now, id]
+    );
+    return { id, title, updatedAt: now };
+  },
+
+  async updateConversationTime(id: string) {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    await db.run('UPDATE conversations SET updatedAt = ? WHERE id = ?', [now, id]);
+  },
+
+  async deleteConversation(id: string) {
+    const db = await getDb();
+    await db.run('DELETE FROM messages WHERE conversationId = ?', [id]);
+    await db.run('DELETE FROM conversations WHERE id = ?', [id]);
+    return { id };
+  },
+
+  // ========== 消息相关 ==========
+  async createMessage(conversationId: string, role: string, content: string) {
+    const db = await getDb();
+    const id = 'msg_' + Date.now();
+    const now = new Date().toISOString();
+    await db.run(
+      'INSERT INTO messages (id, role, content, conversationId, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [id, role, content, conversationId, now]
+    );
+    return { id, role, content, conversationId, createdAt: now };
+  },
+
+  async getMessagesByConversationId(conversationId: string) {
+    const db = await getDb();
+    return db.all('SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt ASC', [conversationId]);
+  },
+
+  async getMessageById(id: string) {
+    const db = await getDb();
+    return db.get('SELECT * FROM messages WHERE id = ?', [id]);
   }
 };

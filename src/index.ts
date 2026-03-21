@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.ts';
 import documentRoutes from './routes/documents.ts';
 import generateRoutes from './routes/generate.ts';
+import chatRoutes from './routes/chat.ts';
 
 // 加载环境变量
 dotenv.config();
@@ -51,6 +52,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/generate', generateRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 错误处理
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -65,12 +67,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔑 Auth API: http://localhost:${PORT}/api/auth`);
   console.log(`📝 Documents API: http://localhost:${PORT}/api/documents`);
   console.log(`🤖 Generate API: http://localhost:${PORT}/api/generate`);
-});
-// 健康检查接口
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    database: 'sqlite'
-  });
+  console.log(`💬 Chat API: http://localhost:${PORT}/api/chat`);
 });
