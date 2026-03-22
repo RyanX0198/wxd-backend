@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { 
   getHumanizePrompt, 
   getHumanizeSystemRole,
@@ -7,10 +8,63 @@ import {
 } from '../lib/humanize.ts';
 
 const router = Router();
+const prisma = new PrismaClient();
 
 // DeepSeek API配置
 const DEEPSEEK_API_KEY = 'sk-cb6715bc91a34415b607191c0c0bbb6b';
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
+
+/**
+ * 获取参考语料内容
+ * 根据corpusIds查询语料库，返回格式化的参考范文
+ */
+async function getCorpusReferences(corpusIds: string[]): Promise<string> {
+  if (!corpusIds || corpusIds.length === 0) {
+    return '';
+  }
+  
+  try {
+    const corpora = await prisma.corpus.findMany({
+      where: {
+        id: { in: corpusIds }
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        category: true,
+        source: true
+      }
+    });
+    
+    if (corpora.length === 0) {
+      return '';
+    }
+    
+    // 更新使用次数
+    await prisma.corpus.updateMany({
+      where: { id: { in: corpusIds } },
+      data: { useCount: { increment: 1 } }
+    });
+    
+    // 格式化参考范文
+    const references = corpora.map((corpus, index) => {
+      return `【参考范文 ${index + 1}】
+标题：${corpus.title}
+文种：${corpus.category}
+${corpus.source ? `来源：${corpus.source}` : ''}
+
+正文：
+${corpus.content.substring(0, 2000)}${corpus.content.length > 2000 ? '...' : ''}
+---`;
+    });
+    
+    return '\n\n【参考范文】\n以下是一些优秀的参考范文，请在写作时学习其语言风格、结构安排和用词特点，但不要直接抄袭内容：\n\n' + references.join('\n\n');
+  } catch (error) {
+    console.error('获取参考语料失败:', error);
+    return '';
+  }
+}
 
 // Prompt 模板 - 8种文种完整版
 const prompts = {
@@ -159,7 +213,7 @@ const prompts = {
 // POST /api/generate
 router.post('/', async (req, res) => {
   try {
-    const { type, topic, from, to, wordCount, formality, urgency, humanizeLevel } = req.body;
+    const { type, topic, from, to, wordCount, formality, urgency, humanizeLevel, corpusIds } = req.body;
     
     if (!type || !topic || !from || !to) {
       return res.status(400).json({ error: '缺少必要参数' });
@@ -210,8 +264,14 @@ router.post('/', async (req, res) => {
       paramInstructions += getHumanizePrompt(validHumanizeLevel);
     }
     
+    // 获取参考范文（如果提供了corpusIds）
+    let corpusReferences = '';
+    if (corpusIds && Array.isArray(corpusIds) && corpusIds.length > 0) {
+      corpusReferences = await getCorpusReferences(corpusIds);
+    }
+    
     // 完整prompt
-    const prompt = basePrompt + paramInstructions;
+    const prompt = basePrompt + paramInstructions + corpusReferences;
     
     // 构建系统角色（根据去AI味级别）
     const systemRole = getHumanizeSystemRole(validHumanizeLevel);
@@ -255,7 +315,8 @@ router.post('/', async (req, res) => {
         type,
         topic,
         model: 'deepseek-chat',
-        params: { wordCount, formality, urgency, humanizeLevel: validHumanizeLevel }
+        params: { wordCount, formality, urgency, humanizeLevel: validHumanizeLevel },
+        corpusIds: corpusIds || []
       }
     });
   } catch (error: any) {

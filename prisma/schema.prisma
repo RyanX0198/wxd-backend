@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -28,8 +28,8 @@ model User {
 model Document {
   id          String   @id @default(uuid())
   title       String
-  content     String   @db.Text
-  preview     String?  @db.Text
+  content     String
+  preview     String?
   
   // 关联用户
   userId      String
@@ -41,8 +41,6 @@ model Document {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([userId])
-  @@index([createdAt])
   @@map("documents")
 }
 
@@ -58,24 +56,44 @@ model Conversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId])
-  @@index([updatedAt])
   @@map("conversations")
 }
 
 model Message {
   id              String   @id @default(uuid())
   role            MessageRole
-  content         String   @db.Text
+  content         String
   
   conversationId  String
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
 
-  @@index([conversationId])
-  @@index([createdAt])
   @@map("messages")
+}
+
+model Corpus {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   // SQLite 中 String 支持长文本
+  category    String   // 文种类型：讲话稿、活动通知、工作总结等
+  tags        String   @default("[]") // JSON字符串存储标签数组
+  source      String?  // 来源
+  isTemplate  Boolean  @default(false) // 是否为范文模板
+  
+  // 统计字段
+  viewCount   Int      @default(0)  // 浏览次数
+  useCount    Int      @default(0)  // 使用次数
+  
+  // RAG预留字段
+  vectorId    String?  // 向量数据库ID（预留）
+  // embedding 字段使用JSON字符串存储，兼容SQLite
+  embedding   String?  // 向量嵌入数据（JSON字符串，预留）
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("corpus")
 }
 
 enum Role {
