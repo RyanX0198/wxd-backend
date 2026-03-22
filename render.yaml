@@ -9,6 +9,8 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: RENDER_DISK_MOUNT_PATH
+        value: /data
     disk:
       name: sqlite-data
       mountPath: /data

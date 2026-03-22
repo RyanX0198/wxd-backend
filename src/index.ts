@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.ts';
 import documentRoutes from './routes/documents.ts';
 import generateRoutes from './routes/generate.ts';
 import chatRoutes from './routes/chat.ts';
+import humanizeRoutes from './routes/humanize.ts';
 
 // 加载环境变量
 dotenv.config();
@@ -53,6 +54,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/humanize', humanizeRoutes);
 
 // 错误处理
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -68,4 +70,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📝 Documents API: http://localhost:${PORT}/api/documents`);
   console.log(`🤖 Generate API: http://localhost:${PORT}/api/generate`);
   console.log(`💬 Chat API: http://localhost:${PORT}/api/chat`);
+  console.log(`🎭 Humanize API: http://localhost:${PORT}/api/humanize`);
 });

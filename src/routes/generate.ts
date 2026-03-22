@@ -1,4 +1,10 @@
 import { Router } from 'express';
+import { 
+  getHumanizePrompt, 
+  getHumanizeSystemRole,
+  validateHumanizeLevel,
+  HumanizeLevel 
+} from '../lib/humanize.ts';
 
 const router = Router();
 
@@ -153,7 +159,7 @@ const prompts = {
 // POST /api/generate
 router.post('/', async (req, res) => {
   try {
-    const { type, topic, from, to, wordCount, formality, urgency } = req.body;
+    const { type, topic, from, to, wordCount, formality, urgency, humanizeLevel } = req.body;
     
     if (!type || !topic || !from || !to) {
       return res.status(400).json({ error: '缺少必要参数' });
@@ -162,6 +168,9 @@ router.post('/', async (req, res) => {
     if (!['讲话稿', '活动通知', '工作总结', '请示', '报告', '批复', '函', '纪要'].includes(type)) {
       return res.status(400).json({ error: '不支持的文种类型' });
     }
+    
+    // 验证并设置去AI味级别
+    const validHumanizeLevel = validateHumanizeLevel(humanizeLevel);
     
     // 构建基础prompt
     const basePrompt = prompts[type as keyof typeof prompts](topic, from, to);
@@ -174,8 +183,8 @@ router.post('/', async (req, res) => {
       paramInstructions += `\n字数要求：严格控制在${wordCount}字左右。`;
     }
     
-    // 风格调整
-    if (formality) {
+    // 风格调整（如果没有选择去AI味，则使用传统风格参数）
+    if (formality && validHumanizeLevel === 'none') {
       const styleMap: Record<number, string> = {
         1: '通俗易懂，口语化表达，便于群众理解',
         2: '较为通俗，适当使用专业术语',
@@ -196,8 +205,16 @@ router.post('/', async (req, res) => {
       paramInstructions += `\n紧迫程度：${urgencyMap[urgency] || urgencyMap[1]}`;
     }
     
+    // 添加去AI味指令（如果有选择）
+    if (validHumanizeLevel !== 'none') {
+      paramInstructions += getHumanizePrompt(validHumanizeLevel);
+    }
+    
     // 完整prompt
     const prompt = basePrompt + paramInstructions;
+    
+    // 构建系统角色（根据去AI味级别）
+    const systemRole = getHumanizeSystemRole(validHumanizeLevel);
     
     // 调用 DeepSeek API
     const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
@@ -209,10 +226,10 @@ router.post('/', async (req, res) => {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是一位资深的政府公文写作专家，擅长撰写各类教育政务公文。' },
+          { role: 'system', content: systemRole },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.7,
+        temperature: validHumanizeLevel === 'none' ? 0.7 : 0.8,
         max_tokens: 4000,
         stream: false
       })
@@ -238,7 +255,7 @@ router.post('/', async (req, res) => {
         type,
         topic,
         model: 'deepseek-chat',
-        params: { wordCount, formality, urgency }
+        params: { wordCount, formality, urgency, humanizeLevel: validHumanizeLevel }
       }
     });
   } catch (error: any) {

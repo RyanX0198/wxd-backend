@@ -3,8 +3,13 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import path from 'path';
 
-// 数据库文件路径
-const dbPath = path.join(process.cwd(), 'data.db');
+// 数据库文件路径 - 支持Render持久化磁盘
+// Render上挂载在/data，本地开发使用当前目录
+const dbPath = process.env.RENDER_DISK_MOUNT_PATH 
+  ? path.join('/data', 'data.db')  // Render生产环境
+  : path.join(process.cwd(), 'data.db');  // 本地开发环境
+
+console.log('[DB] 数据库路径:', dbPath);
 
 // 创建数据库连接
 let db: any = null;

@@ -100,14 +100,27 @@ router.post('/messages/stream', async (req, res) => {
   try {
     const { conversationId, content, userId } = req.body;
     
+    console.log('[CHAT] 收到流式消息请求:', { conversationId, content: content?.substring(0, 50), userId });
+    
     if (!conversationId || !content) {
+      console.log('[CHAT] 错误: 缺少必要参数', { conversationId, content: !!content });
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
     // 验证对话存在
+    console.log('[CHAT] 查询对话:', conversationId);
     const conversation = await mockDB.getConversationById(conversationId);
+    console.log('[CHAT] 查询结果:', conversation);
+    
     if (!conversation) {
-      return res.status(404).json({ error: '对话不存在' });
+      console.log('[CHAT] 错误: 对话不存在', conversationId);
+      // 对于SSE流，需要发送错误事件而不是JSON响应
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.write(`data: ${JSON.stringify({ type: 'error', error: '对话不存在', conversationId })}
+
+`);
+      res.end();
+      return;
     }
 
     // 保存用户消息
@@ -221,23 +234,43 @@ router.post('/messages/stream', async (req, res) => {
 // POST /api/chat/messages - 非流式发送消息（备用）
 router.post('/messages', async (req, res) => {
   try {
-    const { conversationId, content, userId } = req.body;
+    const { conversationId, content, userId, autoCreate = false } = req.body;
+    
+    console.log('[CHAT] 收到消息请求:', { conversationId, content: content?.substring(0, 50), userId, autoCreate });
     
     if (!conversationId || !content) {
+      console.log('[CHAT] 错误: 缺少必要参数', { conversationId, content: !!content });
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
     // 验证对话存在
-    const conversation = await mockDB.getConversationById(conversationId);
+    console.log('[CHAT] 查询对话:', conversationId);
+    let conversation = await mockDB.getConversationById(conversationId);
+    console.log('[CHAT] 查询结果:', conversation);
+    
+    // 容错：如果对话不存在且autoCreate为true，自动创建新对话
+    let actualConversationId = conversationId;
+    if (!conversation && autoCreate && userId) {
+      console.log('[CHAT] 对话不存在，自动创建新对话:', { originalId: conversationId, userId });
+      conversation = await mockDB.createConversation(userId, '自动创建对话', 'general');
+      actualConversationId = conversation.id;
+      console.log('[CHAT] 新对话已创建:', actualConversationId);
+    }
+    
     if (!conversation) {
-      return res.status(404).json({ error: '对话不存在' });
+      console.log('[CHAT] 错误: 对话不存在', conversationId);
+      return res.status(404).json({ 
+        error: '对话不存在', 
+        conversationId,
+        hint: '请先调用 POST /api/chat/conversations 创建对话'
+      });
     }
 
     // 保存用户消息
-    await mockDB.createMessage(conversationId, 'user', content);
+    await mockDB.createMessage(actualConversationId, 'user', content);
 
     // 获取历史消息
-    const historyMessages = await mockDB.getMessagesByConversationId(conversationId);
+    const historyMessages = await mockDB.getMessagesByConversationId(actualConversationId);
     const messages = historyMessages.slice(-10).map((msg: any) => ({
       role: msg.role,
       content: msg.content
@@ -276,14 +309,17 @@ router.post('/messages', async (req, res) => {
     const aiContent = data.choices?.[0]?.message?.content || '';
 
     // 保存AI回复
-    const aiMessage = await mockDB.createMessage(conversationId, 'assistant', aiContent);
+    const aiMessage = await mockDB.createMessage(actualConversationId, 'assistant', aiContent);
     
     // 更新对话时间
-    await mockDB.updateConversationTime(conversationId);
+    await mockDB.updateConversationTime(actualConversationId);
 
     res.json({
       success: true,
-      data: aiMessage
+      data: {
+        ...aiMessage,
+        conversationId: actualConversationId  // 确保返回正确的conversationId
+      }
     });
 
   } catch (error: any) {
