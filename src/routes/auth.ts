@@ -30,7 +30,7 @@ router.post('/register', async (req, res) => {
       data: {
         token,
         user: {
-          id: user.id,
+          userId: user.id,
           email: user.email,
           name: user.name
         }
@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
       data: {
         token,
         user: {
-          id: user.id,
+          userId: user.id,
           email: user.email,
           name: user.name
         }
