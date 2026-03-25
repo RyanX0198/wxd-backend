@@ -228,8 +228,6 @@ export function getStyleAdjustPrompt(
   };
   
   return replaceVariables(STYLE_ADJUST_TEMPLATE, replaceVars);
-    preferredWords: styleGuide.preferredWords?.join('、') || ''
-  });
 }
 
 /**
