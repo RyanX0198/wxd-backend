@@ -3,37 +3,21 @@
   "name": "wxd-backend",
   "builds": [
     {
-      "src": "api/**/*.js",
+      "src": "src/index.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/auth/register",
-      "dest": "/api/auth/register.js"
-    },
-    {
-      "src": "/api/auth/login",
-      "dest": "/api/auth/login.js"
-    },
-    {
-      "src": "/api/auth/me",
-      "dest": "/api/auth/me.js"
-    },
-    {
-      "src": "/api/documents",
-      "dest": "/api/documents/index.js"
-    },
-    {
-      "src": "/api/generate",
-      "dest": "/api/generate.js"
+      "src": "/api/(.*)",
+      "dest": "/src/index.ts"
     },
     {
       "src": "/health",
-      "dest": "/api/health.js"
+      "dest": "/src/index.ts"
     }
   ],
   "env": {
-    "JWT_SECRET": "wxd-secret-key-2026-vercel"
+    "NODE_ENV": "production"
   }
 }
