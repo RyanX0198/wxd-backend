@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist';
 import { PrismaClient } from '@prisma/client';
 import { jwt } from '../utils/jwt.ts';
 
@@ -32,7 +32,7 @@ const storage = multer.diskStorage({
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedTypes = ['.pdf', '.docx', '.doc', '.txt', '.md'];
   const ext = path.extname(file.originalname).toLowerCase();
-  
+
   if (allowedTypes.includes(ext)) {
     cb(null, true);
   } else {
@@ -40,7 +40,7 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   }
 };
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB限制
@@ -53,7 +53,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: '未提供token' });
     }
-    
+
     const token = authHeader.replace('Bearer ', '');
     const decoded = jwt.verify(token);
     req.user = decoded;
@@ -68,12 +68,25 @@ const authMiddleware = (req: any, res: any, next: any) => {
  */
 async function extractText(filePath: string, mimeType: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
-  
+
   try {
     if (ext === '.pdf') {
+      // 使用 pdfjs-dist 提取 PDF 文本
       const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      return pdfData.text;
+      const pdfDocument = await pdfjsLib.getDocument({ data: dataBuffer }).promise;
+      const numPages = pdfDocument.numPages;
+      let fullText = '';
+
+      for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDocument.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        fullText += pageText + '\n';
+        page.cleanup();
+      }
+
+      pdfDocument.destroy();
+      return fullText.trim();
     } else if (ext === '.docx' || ext === '.doc') {
       const result = await mammoth.extractRawText({ path: filePath });
       return result.value;
@@ -142,15 +155,15 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: any, r
     });
   } catch (error: any) {
     console.error('[CorpusUpload] 上传失败:', error);
-    
+
     // 清理上传的文件
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
-    res.status(500).json({ 
-      error: '文件上传失败', 
-      message: error.message 
+
+    res.status(500).json({
+      error: '文件上传失败',
+      message: error.message
     });
   }
 });
@@ -161,7 +174,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: any, r
 router.get('/files', authMiddleware, async (req: any, res) => {
   try {
     const { category, indexed, page = '1', limit = '20' } = req.query;
-    
+
     const pageNum = Math.max(1, parseInt(page as string));
     const limitNum = Math.min(50, Math.max(1, parseInt(limit as string)));
     const skip = (pageNum - 1) * limitNum;
@@ -201,7 +214,7 @@ router.get('/files', authMiddleware, async (req: any, res) => {
           size = stats.size;
         }
       }
-      
+
       return {
         id: file.id,
         name: file.title,
@@ -229,9 +242,9 @@ router.get('/files', authMiddleware, async (req: any, res) => {
     });
   } catch (error: any) {
     console.error('[CorpusFiles] 获取文件列表失败:', error);
-    res.status(500).json({ 
-      error: '获取文件列表失败', 
-      message: error.message 
+    res.status(500).json({
+      error: '获取文件列表失败',
+      message: error.message
     });
   }
 });
@@ -242,16 +255,16 @@ router.get('/files', authMiddleware, async (req: any, res) => {
 router.delete('/files/:id', authMiddleware, async (req: any, res) => {
   try {
     const { id } = req.params;
-    
+
     // 获取文件信息
     const corpus = await prisma.corpus.findUnique({
       where: { id }
     });
-    
+
     if (!corpus) {
       return res.status(404).json({ error: '文件不存在' });
     }
-    
+
     // 删除物理文件
     if (corpus.source) {
       const filePath = path.join(UPLOAD_DIR, corpus.source);
@@ -259,16 +272,16 @@ router.delete('/files/:id', authMiddleware, async (req: any, res) => {
         fs.unlinkSync(filePath);
       }
     }
-    
+
     // 删除数据库记录
     await prisma.corpus.delete({ where: { id } });
-    
+
     res.json({ success: true, message: '删除成功' });
   } catch (error: any) {
     console.error('[CorpusDelete] 删除失败:', error);
-    res.status(500).json({ 
-      error: '删除失败', 
-      message: error.message 
+    res.status(500).json({
+      error: '删除失败',
+      message: error.message
     });
   }
 });
@@ -283,15 +296,15 @@ router.post('/trigger-index', authMiddleware, async (req: any, res) => {
       where: { indexed: false },
       select: { id: true, title: true, source: true }
     });
-    
+
     if (pendingFiles.length === 0) {
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         message: '没有待索引的文件',
         data: { total: 0, indexed: 0 }
       });
     }
-    
+
     // 异步索引处理（简化版）
     let indexedCount = 0;
     for (const file of pendingFiles) {
@@ -302,9 +315,9 @@ router.post('/trigger-index', authMiddleware, async (req: any, res) => {
             const content = await extractText(filePath, '');
             await prisma.corpus.update({
               where: { id: file.id },
-              data: { 
+              data: {
                 content,
-                indexed: true 
+                indexed: true
               }
             });
             indexedCount++;
@@ -314,7 +327,7 @@ router.post('/trigger-index', authMiddleware, async (req: any, res) => {
         console.error(`[CorpusIndex] 索引失败 ${file.title}:`, err);
       }
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -324,9 +337,9 @@ router.post('/trigger-index', authMiddleware, async (req: any, res) => {
     });
   } catch (error: any) {
     console.error('[CorpusIndex] 触发索引失败:', error);
-    res.status(500).json({ 
-      error: '触发索引失败', 
-      message: error.message 
+    res.status(500).json({
+      error: '触发索引失败',
+      message: error.message
     });
   }
 });
