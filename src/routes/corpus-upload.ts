@@ -3,7 +3,6 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
 import { PrismaClient } from '@prisma/client';
 import { jwt } from '../utils/jwt.ts';
 
@@ -30,13 +29,13 @@ const storage = multer.diskStorage({
 
 // 文件过滤 - 只允许特定类型
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = ['.pdf', '.docx', '.doc', '.txt', '.md'];
+  const allowedTypes = ['.docx', '.doc', '.txt', '.md'];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (allowedTypes.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('不支持的文件类型，仅支持 PDF, DOCX, DOC, TXT, MD'));
+    cb(new Error('不支持的文件类型，仅支持 DOCX, DOC, TXT, MD'));
   }
 };
 
@@ -70,24 +69,7 @@ async function extractText(filePath: string, mimeType: string): Promise<string> 
   const ext = path.extname(filePath).toLowerCase();
 
   try {
-    if (ext === '.pdf') {
-      // 使用 pdfjs-dist 提取 PDF 文本
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfDocument = await pdfjsLib.getDocument({ data: dataBuffer }).promise;
-      const numPages = pdfDocument.numPages;
-      let fullText = '';
-
-      for (let i = 1; i <= numPages; i++) {
-        const page = await pdfDocument.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
-        fullText += pageText + '\n';
-        page.cleanup();
-      }
-
-      pdfDocument.destroy();
-      return fullText.trim();
-    } else if (ext === '.docx' || ext === '.doc') {
+    if (ext === '.docx' || ext === '.doc') {
       const result = await mammoth.extractRawText({ path: filePath });
       return result.value;
     } else if (ext === '.txt' || ext === '.md') {
