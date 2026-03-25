@@ -1,12 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import authRoutes from './routes/auth.ts';
 import documentRoutes from './routes/documents.ts';
 import generateRoutes from './routes/generate.ts';
 import chatRoutes from './routes/chat.ts';
 import humanizeRoutes from './routes/humanize.ts';
 import corpusRoutes from './routes/corpus.ts';
+import corpusUploadRoutes from './routes/corpus-upload.ts';
 import writeRoutes from './api/routes/write.ts';
 import { checkKimiConfig } from './llm/service.ts';
 
@@ -35,6 +37,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// 静态文件服务 - 上传的文件
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 // 健康检查 - 同时支持 /health 和 /api/health
 app.get('/health', (req, res) => {
   res.json({
@@ -59,6 +64,7 @@ app.use('/api/generate', generateRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/humanize', humanizeRoutes);
 app.use('/api/corpus', corpusRoutes);
+app.use('/api/corpus', corpusUploadRoutes);  // 文件上传路由
 app.use('/api/write', writeRoutes);
 
 // 错误处理
@@ -77,6 +83,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`💬 Chat API: http://localhost:${PORT}/api/chat`);
   console.log(`🎭 Humanize API: http://localhost:${PORT}/api/humanize`);
   console.log(`📚 Corpus API: http://localhost:${PORT}/api/corpus`);
+  console.log(`📁 Corpus Upload API: http://localhost:${PORT}/api/corpus/upload`);
   console.log(`✍️ Write API (Agent): http://localhost:${PORT}/api/write`);
   
   // 检查Kimi配置
