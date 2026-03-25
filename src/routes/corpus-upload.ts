@@ -1,3 +1,40 @@
+// Polyfill for Node.js 18 - must be before mammoth import
+if (typeof global.DOMMatrix === 'undefined') {
+  global.DOMMatrix = class DOMMatrix {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+    constructor(init?: any) { if (init) Object.assign(this, init); }
+    multiply() { return this; }
+    translate() { return this; }
+    scale() { return this; }
+    rotate() { return this; }
+    transformPoint() { return { x: 0, y: 0 }; }
+  } as any;
+}
+if (typeof global.ImageData === 'undefined') {
+  global.ImageData = class ImageData {
+    data: Uint8ClampedArray; width: number; height: number;
+    constructor(data: any, width: number, height?: number) {
+      this.data = data;
+      this.width = width;
+      this.height = height || width;
+    }
+  } as any;
+}
+if (typeof global.Path2D === 'undefined') {
+  global.Path2D = class Path2D {
+    addPath() {}
+    closePath() {}
+    moveTo() {}
+    lineTo() {}
+    bezierCurveTo() {}
+    quadraticCurveTo() {}
+    arc() {}
+    arcTo() {}
+    ellipse() {}
+    rect() {}
+  } as any;
+}
+
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
