@@ -263,7 +263,7 @@ router.get('/:id/stream', async (req, res) => {
     
     // 获取最终结果
     const returnResult = await writingGenerator.return?.();
-    const result = returnResult?.value as WritingResult | undefined;
+    result = returnResult?.value as WritingResult | undefined;
     
     if (result) {
       // 保存结果
