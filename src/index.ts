@@ -7,6 +7,8 @@ import generateRoutes from './routes/generate.ts';
 import chatRoutes from './routes/chat.ts';
 import humanizeRoutes from './routes/humanize.ts';
 import corpusRoutes from './routes/corpus.ts';
+import writeRoutes from './api/routes/write.ts';
+import { checkKimiConfig } from './llm/service.ts';
 
 // 加载环境变量
 dotenv.config();
@@ -57,6 +59,7 @@ app.use('/api/generate', generateRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/humanize', humanizeRoutes);
 app.use('/api/corpus', corpusRoutes);
+app.use('/api/write', writeRoutes);
 
 // 错误处理
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -74,4 +77,13 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`💬 Chat API: http://localhost:${PORT}/api/chat`);
   console.log(`🎭 Humanize API: http://localhost:${PORT}/api/humanize`);
   console.log(`📚 Corpus API: http://localhost:${PORT}/api/corpus`);
+  console.log(`✍️ Write API (Agent): http://localhost:${PORT}/api/write`);
+  
+  // 检查Kimi配置
+  const kimiConfig = checkKimiConfig();
+  if (kimiConfig.valid) {
+    console.log(`🤖 Kimi API: ${kimiConfig.message}`);
+  } else {
+    console.log(`⚠️ Kimi API: ${kimiConfig.message}`);
+  }
 });
