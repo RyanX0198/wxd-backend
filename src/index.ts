@@ -47,6 +47,7 @@ import humanizeRoutes from './routes/humanize.ts';
 import corpusRoutes from './routes/corpus.ts';
 import corpusUploadRoutes from './routes/corpus-upload.ts';
 import writeRoutes from './api/routes/write.ts';
+import writingRoutes from './routes/writing.ts';
 import { checkKimiConfig } from './llm/service.ts';
 
 // 加载环境变量
@@ -103,6 +104,7 @@ app.use('/api/humanize', humanizeRoutes);
 app.use('/api/corpus', corpusRoutes);
 app.use('/api/corpus', corpusUploadRoutes);  // 文件上传路由
 app.use('/api/write', writeRoutes);
+app.use('/api/writing', writingRoutes);  // 新版文稿生成API
 
 // 错误处理
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -122,6 +124,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📚 Corpus API: http://localhost:${PORT}/api/corpus`);
   console.log(`📁 Corpus Upload API: http://localhost:${PORT}/api/corpus/upload`);
   console.log(`✍️ Write API (Agent): http://localhost:${PORT}/api/write`);
+  console.log(`✍️ Writing API (Simple): http://localhost:${PORT}/api/writing/generate`);
   
   // 检查Kimi配置
   const kimiConfig = checkKimiConfig();
