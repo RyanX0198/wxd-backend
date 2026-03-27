@@ -2,15 +2,21 @@ services:
   - type: web
     name: wxd-backend
     env: node
-    buildCommand: npm install
-    startCommand: npm start
+    repo: https://github.com/RyanX0198/wxd-backend
+    branch: main
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx tsx src/index.ts
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-      - key: RENDER_DISK_MOUNT_PATH
-        value: /data
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: file:/data/data.db
     disk:
       name: sqlite-data
       mountPath: /data
